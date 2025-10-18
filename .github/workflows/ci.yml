@@ -1,0 +1,77 @@
+name: CI - Deno + Fresh
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2.0.3
+        with:
+          deno-version: '2.x'
+
+      - name: Cache deps
+        id: cache-deno
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            .deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('**/deno.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-
+
+      - name: Install dependencies (deno cache)
+        run: deno cache --unstable ./main.ts
+
+      - name: Check formatting
+        run: deno fmt --check
+
+      - name: Lint
+        run: deno lint
+
+      - name: Type check (deno check)
+        run: deno check
+
+      - name: Build production (Fresh)
+        run: |
+          # Try project build task (vite) first, otherwise use the fresh builder
+          deno task build || deno run -A jsr:@fresh/builder .
+
+      - name: Validate server bundle
+        run: test -f _fresh/server.js
+
+      - name: Start server in background
+        run: |
+          # Use project task to start server (matches deno.json start)
+          nohup deno task start > server.log 2>&1 &
+          echo $! > server.pid
+
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sSf http://127.0.0.1:8000/ >/dev/null 2>&1; then
+              echo "server up";
+              break;
+            fi
+            sleep 1;
+          done
+
+      - name: Run tests
+        run: deno test --allow-net
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+          fi
