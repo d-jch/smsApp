@@ -1,0 +1,13 @@
+api.md
+test_plan.md
+deploy.md
+user_manual.md
+
+1. Ensure /api/login returns JSON for fetch-based clients.
+2. Add basic unit tests for small components (PhoneInput) and API endpoints (/api/login).
+3. Repo cleanup pass for any stale example files (OTP-related examples removed).
+4. Add a minimal CI workflow to run lint/tests.
+5. Optional performance: lazy-hydrate active island.
+6. Repo cleanup pass for any stale example files.
+7. Document the removal in a CHANGELOG or docs/TODO.
+8. Deployment checklist (later).

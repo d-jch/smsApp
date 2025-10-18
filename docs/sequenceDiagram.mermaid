@@ -1,0 +1,56 @@
+sequenceDiagram
+    %% 用户认证流程
+    participant User
+    participant AuthService
+    User->>AuthService: register(userInfo)
+    AuthService-->>User: 注册结果
+    User->>AuthService: login(email, password)
+    AuthService-->>User: 登录令牌
+
+    %% 预约流程
+    participant AppointmentService
+    User->>AppointmentService: createAppointment(申请测序服务)
+    AppointmentService-->>User: 预约ID
+
+    %% 样本录入流程
+    participant SampleService
+    User->>SampleService: batchCreateSamples(samples[])
+    SampleService-->>User: 样品ID列表
+
+    %% 引物录入流程
+    participant PrimerService
+    loop 每个样品
+        User->>PrimerService: createPrimer(primerData)
+        PrimerService-->>User: 引物ID
+    end
+
+    %% 实验创建与反应分配流程
+    participant ExperimentService
+    participant ReactionService
+    User->>ExperimentService: createExperiment(experimentData)
+    ExperimentService-->>User: 实验ID
+
+    loop 每个孔
+        ExperimentService->>ReactionService: createReaction(reactionData)
+        ReactionService-->>ExperimentService: 反应ID
+    end
+
+    %% 技术员上传测序结果
+    User->>ExperimentService: addResults(experimentId, results)
+    ExperimentService-->>User: 结果上传确认
+
+    %% 用户/管理员查询进度与结果
+    User->>AppointmentService: getAppointment(id)
+    AppointmentService-->>User: 预约详情
+    User->>SampleService: getSample(id)
+    SampleService-->>User: 样品详情
+    User->>ExperimentService: getExperiment(id)
+    ExperimentService-->>User: 实验详情
+    User->>ReactionService: listReactions(filters)
+    ReactionService-->>User: 反应结果列表
+
+%% 说明
+%% - 用户注册/登录后可创建预约，批量录入样品，为样品添加引物
+%% - 技术员创建实验（板），分配样品和引物到孔，生成反应
+%% - 技术员上传测序结果，用户和管理员可随时查询进度和结果
+%% - 服务层负责业务逻辑和数据处理，流程与PRD和系统设计文档一致

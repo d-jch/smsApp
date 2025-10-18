@@ -1,0 +1,100 @@
+classDiagram
+    %% 用户相关
+    class User {
+        +UUID id
+        +String username
+        +String passwordHash
+        +String email
+        +String role         %% admin, user, technician
+        +String department
+        +String phone
+        +DateTime createdAt
+        +DateTime updatedAt
+    }
+
+    %% 预约相关
+    class Appointment {
+        +UUID id
+        +UUID userId
+        +String status
+        +Integer sampleCount
+        +String notes
+        +DateTime createdAt
+        +DateTime updatedAt
+    }
+
+    %% 样品相关
+    class Sample {
+        +UUID id
+        +UUID appointmentId
+        +String name
+        +String type
+        +String resistance
+        +String vector
+        +Integer length
+        +Decimal concentration
+        +String description
+        +String status
+        +String location
+        +String barcode
+        +DateTime createdAt
+        +DateTime updatedAt
+    }
+
+    %% 引物相关
+    class Primer {
+        +UUID id
+        +UUID sampleId
+        +String type
+        +String name
+        +String sequence
+    }
+
+    %% 引物库
+    class PrimerLibrary {
+        +String id
+        +String name
+        +String sequence
+    }
+
+    %% 实验相关（板级）
+    class Experiment {
+        +UUID id
+        +String plateCode
+        +UUID operatorId
+        +String status
+        +DateTime startTime
+        +DateTime endTime
+        +String instrument
+        +String protocolUsed
+        +DateTime createdAt
+    }
+
+    %% 反应相关（孔级）
+    class Reaction {
+        +UUID id
+        +UUID experimentId
+        +String well         %% 如 A01, B12
+        +UUID sampleId
+        +UUID primerId
+        +String result
+        +Decimal qualityScore
+        +String status
+        +DateTime createdAt
+    }
+
+    %% 关系
+    User "1" -- "*" Appointment : creates
+    Appointment "1" -- "*" Sample : contains
+    Sample "1" -- "*" Primer : has
+    Sample "1" -- "1" Experiment : assignedTo
+    Experiment "1" -- "*" Reaction : includes
+    Reaction "*" -- "1" Sample : for
+    Reaction "*" -- "1" Primer : uses
+    User "1" -- "*" Experiment : operates
+    PrimerLibrary <.. Primer : searches
+
+%% 说明
+%% - 用户可创建预约，预约包含多个样品，样品可有多个引物
+%% - 样品分配到实验（板），实验包含多个反应（孔），每个反应对应一个样品和一个引物
+%% - 引物库用于通用引物检索和选择
