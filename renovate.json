@@ -1,0 +1,32 @@
+{
+  "extends": ["config:base"],
+  "timezone": "UTC",
+  "automerge": false,
+  "rangeStrategy": "pin",
+  "packageRules": [
+    {
+      "matchPaths": ["deno.json"],
+      "groupName": "deno.json imports"
+    }
+  ],
+  "regexManagers": [
+    {
+      "fileMatch": ["^deno.json$"],
+      "matchStrings": [
+        "\"(?<depName>[^\"]+)\":\\s*\"npm:(?<currentValue>[^\\\"]+)\""
+      ],
+      "datasourceTemplate": "npm",
+      "depNameTemplate": "{{{depName}}}",
+      "versioningTemplate": "semver"
+    },
+    {
+      "fileMatch": ["^deno.json$"],
+      "matchStrings": [
+        "\"(?<depName>[^\"]+)\":\\s*\"(?<currentValue>jsr:[^\\\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "{{{depName}}}",
+      "versioningTemplate": "loose"
+    }
+  ]
+}
