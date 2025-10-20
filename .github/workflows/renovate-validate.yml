@@ -1,0 +1,34 @@
+name: Renovate PR Validate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate:
+    name: Validate Renovate PR
+    runs-on: ubuntu-latest
+    if: |
+      github.actor == 'renovate[bot]' || startsWith(github.head_ref, 'renovate/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2.0.3
+        with:
+          deno-version: '2.5.4'
+
+      - name: Cache deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            .deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('**/deno.lock') }}
+
+      - name: deno cache
+        run: deno cache --unstable ./main.ts
+
+      - name: deno check
+        run: deno check
