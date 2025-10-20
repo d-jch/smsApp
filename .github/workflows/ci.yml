@@ -51,6 +51,9 @@ jobs:
         run: test -f _fresh/server.js
 
       - name: Start server in background
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           # Use project task to start server (matches deno.json start)
           nohup deno task start > server.log 2>&1 &
@@ -67,9 +70,22 @@ jobs:
           done
 
       - name: Run tests
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           deno test --coverage=lcov
           deno coverage --lcov --output=coverage.lcov lcov
+
+      - name: Verify secrets present
+        if: always()
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          # Verify secrets are available in the runner without printing them
+          if [ -z "${DATABASE_URL:-}" ]; then echo "ERROR: DATABASE_URL is not set" && exit 1; fi
+          if [ -z "${JWT_SECRET:-}" ]; then echo "ERROR: JWT_SECRET is not set" && exit 1; fi
 
       - name: Upload coverage
         if: success()
