@@ -17,7 +17,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2.0.3
         with:
-          deno-version: '2.x'
+          deno-version: "2.5.4"
 
       - name: Cache deps
         id: cache-deno
@@ -67,7 +67,16 @@ jobs:
           done
 
       - name: Run tests
-        run: deno test --allow-net
+        run: |
+          deno test --coverage=lcov
+          deno coverage --lcov --output=coverage.lcov lcov
+
+      - name: Upload coverage
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage.lcov
 
       - name: Stop server
         if: always()

@@ -8,6 +8,7 @@
     "start:prod": "deno run --allow-net --allow-read=_fresh,_static _fresh/server.js",
     "update": "deno run -A -r jsr:@fresh/update ."
   },
+  "deno-version": "2.5.4",
   "lint": { "rules": { "tags": ["fresh", "recommended"] } },
   "exclude": ["**/_fresh/*"],
   "imports": {
