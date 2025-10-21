@@ -1,29 +1,87 @@
-import { Client } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
-import { loadConfig } from "./config.ts";
+// DB wrapper using deno-postgres and a repo-local CA bundle (src/global-bundle.pem)
+// Usage permissions needed when running: --allow-net --allow-env --allow-read
+import { Client } from "@db/postgres";
 
-const cfg = loadConfig();
+interface PgClient {
+  connect?: () => Promise<void>;
+  end?: () => Promise<void>;
+  queryArray: (
+    q: string,
+    args?: Array<unknown>,
+  ) => Promise<{ rows: Array<unknown[]> }>;
+  queryObject: <T = Record<string, unknown>>(
+    q: string,
+    args?: Array<unknown>,
+  ) => Promise<{ rows: T[] }>;
+}
 
-let client: Client | null = null;
+let _client: PgClient | null = null;
 
-export function getClient(): Client {
-  if (!cfg.databaseUrl) {
-    throw new Error("DATABASE_URL not configured");
+async function initClient(): Promise<PgClient> {
+  if (_client) return _client;
+
+  const DATABASE_URL = Deno.env.get("DATABASE_URL");
+  if (!DATABASE_URL) throw new Error("DATABASE_URL not configured");
+
+  const caPath = new URL("./global-bundle.pem", import.meta.url).pathname;
+  const caPem = await Deno.readTextFile(caPath);
+
+  const url = new URL(DATABASE_URL);
+  const user = decodeURIComponent(url.username || "");
+  const password = decodeURIComponent(url.password || "");
+  const hostname = url.hostname;
+  const port = url.port ? Number(url.port) : 5432;
+  const database = url.pathname ? url.pathname.replace(/^\//, "") : undefined;
+
+  const clientInstance = new Client({
+    user: user || undefined,
+    password: password || undefined,
+    hostname,
+    port,
+    database,
+    tls: {
+      enabled: true,
+      enforce: true,
+      caCertificates: [caPem],
+    },
+  }) as unknown as PgClient;
+
+  if (typeof (clientInstance as PgClient).connect === "function") {
+    await (clientInstance as PgClient).connect!();
   }
-  if (!client) {
-    client = new Client(cfg.databaseUrl);
-  }
-  return client;
+
+  _client = clientInstance;
+  return _client;
 }
 
 export async function connect() {
-  const c = getClient();
-  await c.connect();
-  return c;
+  const client = await initClient();
+  return {
+    queryArray: async (sql: string, params?: unknown[]) => {
+      const res = params
+        ? await client.queryArray(sql, params as Array<unknown>)
+        : await client.queryArray(sql);
+      return { rows: res.rows };
+    },
+    queryObject: async <T = Record<string, unknown>>(
+      sql: string,
+      params?: unknown[],
+    ) => {
+      const res = params
+        ? await client.queryObject<T>(sql, params as Array<unknown>)
+        : await client.queryObject<T>(sql);
+      return { rows: res.rows };
+    },
+  };
 }
 
 export async function disconnect() {
-  if (client) {
-    await client.end();
-    client = null;
-  }
+  if (!_client) return;
+  if (_client.end) await _client.end();
+  _client = null;
+}
+
+export function getClient() {
+  if (!_client) throw new Error("DB not initialized; call connect() first");
+  return _client;
 }

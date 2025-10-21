@@ -12,6 +12,12 @@
   "lint": { "rules": { "tags": ["fresh", "recommended"] } },
   "exclude": ["**/_fresh/*"],
   "imports": {
+    "@db/postgres": "jsr:@db/postgres@^0.19.5",
+    "@std/assert": "jsr:@std/assert@^1.0.15",
+    "@std/fmt": "jsr:@std/fmt@^1.0.8",
+    "@std/fmt/colors": "jsr:@std/fmt@^1.0.15/colors.ts",
+    "@std/path": "jsr:@std/path@^1.0.0",
+    "@std/fs": "jsr:@std/fs@^1.0.0",
     "daisyui": "npm:daisyui@^5.3.7",
     "fresh": "jsr:@fresh/core@^2.1.2",
     "preact": "npm:preact@^10.27.2",

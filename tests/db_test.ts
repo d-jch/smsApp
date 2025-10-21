@@ -1,4 +1,4 @@
-import { assert } from "https://deno.land/std@0.201.0/testing/asserts.ts";
+import { assert } from "@std/assert";
 import { connect, disconnect } from "../src/db.ts";
 
 const DATABASE_URL = Deno.env.get("DATABASE_URL");
@@ -8,7 +8,8 @@ if (DATABASE_URL) {
     const client = await connect();
     try {
       const result = await client.queryArray(`SELECT 1 as ok`);
-      assert(result.length > 0);
+      // queryArray result exposes rows array
+      assert(result.rows.length > 0);
     } finally {
       await disconnect();
     }

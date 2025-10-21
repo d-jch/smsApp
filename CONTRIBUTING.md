@@ -12,4 +12,5 @@ deno lint
 deno test
 ```
 
-- For dependency upgrades, Renovate will open PRs automatically. Review CI results before merging.
+- For dependency upgrades, Renovate will open PRs automatically. Review CI
+  results before merging.

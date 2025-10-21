@@ -47,6 +47,20 @@ jobs:
           # Try project build task (vite) first, otherwise use the fresh builder
           deno task build || deno run -A jsr:@fresh/builder .
 
+      - name: Run DB migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          # Write CA PEM from secret and run database migrations using --cert so Deno trusts custom CA
+          if [ -n "${{ secrets.DB_CA_PEM }}" ]; then
+            echo "${{ secrets.DB_CA_PEM }}" > /tmp/db_ca.pem
+            CERT_ARG="--cert=/tmp/db_ca.pem"
+          else
+            CERT_ARG=""
+          fi
+          deno run $CERT_ARG --allow-net --allow-env scripts/migrate.ts
+
       - name: Validate server bundle
         run: test -f _fresh/server.js
 
@@ -74,7 +88,13 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
-          deno test --coverage=lcov
+          # If we wrote a CA pem during the workflow, use it here as well
+          if [ -f /tmp/db_ca.pem ]; then
+            CERT_ARG="--cert=/tmp/db_ca.pem"
+          else
+            CERT_ARG=""
+          fi
+          deno test $CERT_ARG --coverage=lcov
           deno coverage --lcov --output=coverage.lcov lcov
 
       - name: Verify secrets present
