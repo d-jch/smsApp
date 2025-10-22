@@ -48,3 +48,33 @@ to the repository. Example variables are:
 - `JWT_SECRET` - JWT signing secret
 
 The repository includes `src/config.ts` which reads these values via `Deno.env`.
+
+## Testing and CI (DB TLS / custom CA)
+
+If your Postgres instance uses a custom CA (self-signed or private CA), you have
+two recommended ways to run tests and CI without disabling TLS verification:
+
+1. Local developer (preferred per-client verification)
+
+- Place your CA PEM in `src/global-bundle.pem` (already present in this repo if
+  used).
+- Run tests locally with permission to read that file:
+
+```bash
+deno test --allow-net --allow-env --allow-read=./src/global-bundle.pem
+```
+
+2. CI runner (process-wide `--cert`) — recommended for GitHub Actions
+
+- Add your CA PEM as a repository secret named `DB_CA_PEM` (or update CI to
+  mount a file).
+- The included GitHub Actions workflow will write the secret to `/tmp/db_ca.pem`
+  and pass `--cert=/tmp/db_ca.pem` to `deno run` and `deno test` so the runner
+  trusts the CA.
+
+Notes
+
+- Avoid `--unsafely-ignore-certificate-errors` in CI or production.
+- The `src/db.ts` client also passes the CA to the driver via
+  `tls.caCertificates`, so per-client verification is used in addition to the
+  process-level `--cert` where applicable.

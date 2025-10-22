@@ -1,3 +1,18 @@
+# Local env
+.env
+
+# Coverage artifacts
+coverage.lcov
+lcov/
+
+# Deno cache (optional - CI caches this separately)
+.deno
+/.cache/deno
+
+# Node / Vite artifacts
+node_modules/
+dist/
+build/
 # dotenv environment variable files
 .env
 .env.development.local
@@ -11,3 +26,6 @@ _fresh/
 node_modules/
 vendor/
 
+coverage.lcov
+lcov/
+.env

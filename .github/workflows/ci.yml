@@ -7,6 +7,37 @@ on:
     branches: ["main", "master"]
 
 jobs:
+  unit-tests:
+    name: Unit tests (fast)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2.0.3
+        with:
+          deno-version: "2.5.4"
+
+      - name: Cache deps
+        id: cache-deno-unit
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            .deno
+          key: ${{ runner.os }}-deno-unit-${{ hashFiles('**/deno.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-unit-
+
+      - name: Install dependencies (deno cache)
+        run: deno cache --unstable ./main.ts
+
+      - name: Run fast unit tests (no DB)
+        run: |
+          # Run only helper/unit tests that don't need DATABASE_URL or network.
+          deno test --allow-read=./src/global-bundle.pem tests/helpers_test.ts
+
   build:
     name: Build & Test
     runs-on: ubuntu-latest
@@ -47,10 +78,34 @@ jobs:
           # Try project build task (vite) first, otherwise use the fresh builder
           deno task build || deno run -A jsr:@fresh/builder .
 
+      - name: Run DB migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          # Write CA PEM from secret and run database migrations using --cert so Deno trusts custom CA
+          if [ -n "${{ secrets.DB_CA_PEM }}" ]; then
+            # Secret provided (preferred) - write it to a tmp file and use it
+            echo "${{ secrets.DB_CA_PEM }}" > /tmp/db_ca.pem
+            CERT_ARG="--cert=/tmp/db_ca.pem"
+          elif [ -f ./src/global-bundle.pem ]; then
+            # Secret is either too large or not set; fall back to the checked-in PEM file
+            cp ./src/global-bundle.pem /tmp/db_ca.pem
+            CERT_ARG="--cert=/tmp/db_ca.pem"
+          else
+            # No CA available; run without custom cert (will use system trust)
+            CERT_ARG=""
+          fi
+          # Allow reading the repo PEM when we fall back to it
+          deno run $CERT_ARG --allow-net --allow-env --allow-read=./src/global-bundle.pem scripts/migrate.ts
+
       - name: Validate server bundle
         run: test -f _fresh/server.js
 
       - name: Start server in background
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           # Use project task to start server (matches deno.json start)
           nohup deno task start > server.log 2>&1 &
@@ -67,9 +122,31 @@ jobs:
           done
 
       - name: Run tests
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
-          deno test --coverage=lcov
+          # If we wrote a CA pem during the workflow, use it here as well
+          if [ -f /tmp/db_ca.pem ]; then
+            CERT_ARG="--cert=/tmp/db_ca.pem"
+          else
+            CERT_ARG=""
+          fi
+          # Allow reading the repo PEM during tests if the workflow is using the checked-in PEM
+          # Tests need access to environment variables (DATABASE_URL, JWT_SECRET) and network to
+          # connect to the test database, so allow those explicitly instead of blanket -A.
+          deno test $CERT_ARG --allow-env --allow-net --allow-read=./src/global-bundle.pem --coverage=lcov
           deno coverage --lcov --output=coverage.lcov lcov
+
+      - name: Verify secrets present
+        if: always()
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          # Verify secrets are available in the runner without printing them
+          if [ -z "${DATABASE_URL:-}" ]; then echo "ERROR: DATABASE_URL is not set" && exit 1; fi
+          if [ -z "${JWT_SECRET:-}" ]; then echo "ERROR: JWT_SECRET is not set" && exit 1; fi
 
       - name: Upload coverage
         if: success()
