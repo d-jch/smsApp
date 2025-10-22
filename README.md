@@ -47,6 +47,16 @@ to the repository. Example variables are:
 - `SENTRY_DSN` - Sentry DSN for error reporting
 - `JWT_SECRET` - JWT signing secret
 
+Note on token storage
+
+The frontend islands currently store the received JWT in `localStorage` for
+simplicity and to keep the client code minimal. This is convenient for demos and
+prototypes but has important security implications: tokens in localStorage are
+vulnerable to exfiltration via XSS. For production, prefer issuing HttpOnly,
+Secure cookies from the server (Set-Cookie) and keep tokens out of
+JavaScript-accessible storage. See OWASP session management guidance for
+details.
+
 The repository includes `src/config.ts` which reads these values via `Deno.env`.
 
 ## Testing and CI (DB TLS / custom CA)
