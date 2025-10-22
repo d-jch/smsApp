@@ -7,6 +7,37 @@ on:
     branches: ["main", "master"]
 
 jobs:
+  unit-tests:
+    name: Unit tests (fast)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2.0.3
+        with:
+          deno-version: "2.5.4"
+
+      - name: Cache deps
+        id: cache-deno-unit
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            .deno
+          key: ${{ runner.os }}-deno-unit-${{ hashFiles('**/deno.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-unit-
+
+      - name: Install dependencies (deno cache)
+        run: deno cache --unstable ./main.ts
+
+      - name: Run fast unit tests (no DB)
+        run: |
+          # Run only helper/unit tests that don't need DATABASE_URL or network.
+          deno test --allow-read=./src/global-bundle.pem tests/helpers_test.ts
+
   build:
     name: Build & Test
     runs-on: ubuntu-latest
