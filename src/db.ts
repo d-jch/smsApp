@@ -23,8 +23,13 @@ async function initClient(): Promise<PgClient> {
   const DATABASE_URL = Deno.env.get("DATABASE_URL");
   if (!DATABASE_URL) throw new Error("DATABASE_URL not configured");
 
-  const caPath = new URL("./global-bundle.pem", import.meta.url).pathname;
-  const caPem = await Deno.readTextFile(caPath);
+  // Prefer CA PEM from environment (CI can set DB_CA_PEM). If not present, fall back to the
+  // repository file `src/global-bundle.pem` (allowed for private repos / controlled access).
+  let caPem = Deno.env.get("DB_CA_PEM");
+  if (!caPem) {
+    const caPath = new URL("./global-bundle.pem", import.meta.url).pathname;
+    caPem = await Deno.readTextFile(caPath);
+  }
 
   const url = new URL(DATABASE_URL);
   const user = decodeURIComponent(url.username || "");
@@ -39,11 +44,13 @@ async function initClient(): Promise<PgClient> {
     hostname,
     port,
     database,
-    tls: {
-      enabled: true,
-      enforce: true,
-      caCertificates: [caPem],
-    },
+    tls: caPem
+      ? {
+        enabled: true,
+        enforce: true,
+        caCertificates: [caPem],
+      }
+      : undefined,
   }) as unknown as PgClient;
 
   if (typeof (clientInstance as PgClient).connect === "function") {
