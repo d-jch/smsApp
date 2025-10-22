@@ -102,7 +102,9 @@ jobs:
             CERT_ARG=""
           fi
           # Allow reading the repo PEM during tests if the workflow is using the checked-in PEM
-          deno test $CERT_ARG --allow-read=./src/global-bundle.pem --coverage=lcov
+          # Tests need access to environment variables (DATABASE_URL, JWT_SECRET) and network to
+          # connect to the test database, so allow those explicitly instead of blanket -A.
+          deno test $CERT_ARG --allow-env --allow-net --allow-read=./src/global-bundle.pem --coverage=lcov
           deno coverage --lcov --output=coverage.lcov lcov
 
       - name: Verify secrets present
