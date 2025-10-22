@@ -54,9 +54,15 @@ jobs:
         run: |
           # Write CA PEM from secret and run database migrations using --cert so Deno trusts custom CA
           if [ -n "${{ secrets.DB_CA_PEM }}" ]; then
+            # Secret provided (preferred) - write it to a tmp file and use it
             echo "${{ secrets.DB_CA_PEM }}" > /tmp/db_ca.pem
             CERT_ARG="--cert=/tmp/db_ca.pem"
+          elif [ -f ./src/global-bundle.pem ]; then
+            # Secret is either too large or not set; fall back to the checked-in PEM file
+            cp ./src/global-bundle.pem /tmp/db_ca.pem
+            CERT_ARG="--cert=/tmp/db_ca.pem"
           else
+            # No CA available; run without custom cert (will use system trust)
             CERT_ARG=""
           fi
           deno run $CERT_ARG --allow-net --allow-env scripts/migrate.ts
