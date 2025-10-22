@@ -26,6 +26,10 @@ export default function LoginForm() {
         setLoading(false);
         return;
       }
+      // NOTE: storing JWT in localStorage is convenient for client-only demos,
+      // but exposes the token to XSS risks. Prefer HttpOnly, Secure cookies
+      // for production session tokens. This is intentionally left as an
+      // explicit MVP choice and should be migrated later.
       if (json.token) localStorage.setItem("token", json.token);
       const g = globalThis as unknown as { location?: { href?: string } };
       if (g.location) g.location.href = "/";

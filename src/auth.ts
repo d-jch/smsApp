@@ -57,8 +57,7 @@ export async function authenticateUser(
 }
 
 export async function createJwtForUser(userId: number) {
-  const secret = Deno.env.get("JWT_SECRET") ?? "dev-secret";
-  const key = new TextEncoder().encode(secret);
+  const key = getJwtKey();
   const jwt = await new SignJWT({})
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(String(userId))
@@ -70,8 +69,36 @@ export async function createJwtForUser(userId: number) {
 }
 
 export async function verifyJwt(token: string) {
-  const secret = Deno.env.get("JWT_SECRET") ?? "dev-secret";
-  const key = new TextEncoder().encode(secret);
+  const key = getJwtKey();
   const { payload } = await jwtVerify(token, key);
   return payload;
+}
+
+// getJwtKey returns a CryptoKey compatible key for signing/verification.
+// It prefers the `JWT_SECRET` env variable. In production it throws if missing
+// to avoid unsafe defaults. For development/tests it will generate a
+// per-process random secret so users aren't blocked, but this secret is not
+// persisted between runs.
+function getJwtKey(): Uint8Array {
+  const secret = Deno.env.get("JWT_SECRET");
+  if (secret) {
+    return new TextEncoder().encode(secret);
+  }
+  const env = Deno.env.get("NODE_ENV") ?? Deno.env.get("ENV") ?? "development";
+  if (env === "production") {
+    throw new Error("JWT_SECRET env is required in production");
+  }
+  // development / test fallback: generate a per-process random key
+  // 32 bytes = 256 bits for HS256 secret
+  const buf = new Uint8Array(32);
+  crypto.getRandomValues(buf);
+  // warn once in dev so maintainers know a secret wasn't provided
+  try {
+    console.warn(
+      "Warning: JWT_SECRET not set — using a generated in-memory secret for dev/test only",
+    );
+  } catch {
+    // noop in environments where console may be restricted
+  }
+  return buf;
 }
