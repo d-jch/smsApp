@@ -65,7 +65,8 @@ jobs:
             # No CA available; run without custom cert (will use system trust)
             CERT_ARG=""
           fi
-          deno run $CERT_ARG --allow-net --allow-env scripts/migrate.ts
+          # Allow reading the repo PEM when we fall back to it
+          deno run $CERT_ARG --allow-net --allow-env --allow-read=./src/global-bundle.pem scripts/migrate.ts
 
       - name: Validate server bundle
         run: test -f _fresh/server.js
@@ -100,7 +101,8 @@ jobs:
           else
             CERT_ARG=""
           fi
-          deno test $CERT_ARG --coverage=lcov
+          # Allow reading the repo PEM during tests if the workflow is using the checked-in PEM
+          deno test $CERT_ARG --allow-read=./src/global-bundle.pem --coverage=lcov
           deno coverage --lcov --output=coverage.lcov lcov
 
       - name: Verify secrets present
